@@ -49,10 +49,10 @@ DMA_HandleTypeDef hdma_pssi;
 /* USER CODE BEGIN PV */
 #define RIVI 128
 #define SARAKE 128
-static uint16_t kuva_buffer[RIVI][SARAKE];
-static uint32_t kuva_summa[RIVI];
-volatile uint8_t Transfer_Ready = 0;
-volatile uint8_t rivisummat = 0;
+static uint16_t kuva_buffer[RIVI][SARAKE]; //rxbufferi saapuvalle datalle
+static uint32_t kuva_summa[RIVI]; //summamuuttuja rivinsummaukselle
+volatile uint8_t Transfer_Ready = 0; //RDY lippu
+volatile uint8_t rivisummat = 0; //Summatut rivit
 volatile uint32_t start_time = 0; // Aloitusaika millisekunneissa
 volatile uint32_t elapsed_time = 0; // Kulunut aika millisekunneissa
 
@@ -109,7 +109,7 @@ int main(void)
   MX_DMA_Init();
   MX_PSSI_Init();
   /* USER CODE BEGIN 2 */
-  if (HAL_PSSI_Receive_DMA(&hpssi, (uint32_t*)kuva_buffer, sizeof(kuva_buffer)/4) != HAL_OK)
+  if (HAL_PSSI_Receive_DMA(&hpssi, (uint32_t*)kuva_buffer, sizeof(kuva_buffer)/4) != HAL_OK) //Käynnistetään PSSI vastaanotto sensorilta
   	           {
   	               Error_Handler(); // Virheen käsittely
   	           }
@@ -136,22 +136,22 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  start_time = HAL_GetTick();
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+  start_time = HAL_GetTick(); //Ajastin päälle
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET); //Asetetaan RDY-pinni ylös
   while (1)
   {
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
+	  //Aktivoituu kun kuva on saapunut
 	  if (Transfer_Ready == 1) {
 	          Transfer_Ready = 0;  // Nollataan odotustila
-	          if (rivisummat < 10){
+	          if (rivisummat < 10){ //Vastaanotetaan 10 kuvaa
 	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
 	          }
 	          else {
-	        	  elapsed_time = HAL_GetTick() - start_time;
+	        	  elapsed_time = HAL_GetTick() - start_time; //Kun 10 kuvaa saapunut mitataan kulunut aika
 	        	  printf("10 kuvaa vastaanotettu ajassa: %lu ms\n", elapsed_time);
 	          }
 	      }
@@ -316,12 +316,12 @@ static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[RIVI
     }
     rivisummat++;
 }
-
+//keskeytyksen käsittelijä aktivoituu kun rxbufferi on täyttynyt
 void HAL_PSSI_RxCpltCallback(PSSI_HandleTypeDef *hpssi)
 {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
-	RIVIEN_SUMMAUS(kuva_buffer, kuva_summa);
-	Transfer_Ready++;
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET); //asetetaan RDY nollaan
+	RIVIEN_SUMMAUS(kuva_buffer, kuva_summa); //summataan rivit
+	Transfer_Ready++; //lippu ylös
 
 
 }
