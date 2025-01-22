@@ -152,7 +152,8 @@ int main(void)
 	          }
 	          else {
 	        	  elapsed_time = HAL_GetTick() - start_time; //Kun 10 kuvaa saapunut mitataan kulunut aika
-	        	  printf("10 kuvaa vastaanotettu ajassa: %lu ms\n", elapsed_time);
+	        	  float fps = (1000.0 / elapsed_time) * 10; //lasketaan kuvien määrä sekunnissa
+	        	  printf("10 kuvaa vastaanotettu ajassa: %lu ms, FPS: %.2f\n", elapsed_time, fps);
 	          }
 	      }
 	  	  //else {
