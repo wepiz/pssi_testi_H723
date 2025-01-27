@@ -46,15 +46,24 @@ COM_InitTypeDef BspCOMInit;
 PSSI_HandleTypeDef hpssi;
 DMA_HandleTypeDef hdma_pssi;
 
+TIM_HandleTypeDef htim16;
+
 /* USER CODE BEGIN PV */
 #define RIVI 128
 #define SARAKE 128
 static uint16_t kuva_buffer[RIVI][SARAKE]; //rxbufferi saapuvalle datalle
-static uint32_t kuva_summa[RIVI]; //summamuuttuja rivinsummaukselle
+static uint32_t kuva_summa[10][RIVI]; //summamuuttuja rivinsummaukselle
 volatile uint8_t Transfer_Ready = 0; //RDY lippu
 volatile uint8_t rivisummat = 0; //Summatut rivit
-volatile uint32_t start_time = 0; // Aloitusaika millisekunneissa
+
+volatile uint32_t start_time = 0; // Kokonais aloitusaika millisekunneissa
 volatile uint32_t elapsed_time = 0; // Kulunut aika millisekunneissa
+volatile uint16_t start_time_summaus; // Aloitusaika summaukselle
+volatile uint16_t end_time_summaus;   // Lopetusaika summaukselle
+//volatile uint16_t start_time_siirto; // Aloitusaika siirrolle
+volatile uint16_t end_time_siirto; // Lopetusaika siirrolle
+
+volatile uint16_t sum_rdy; //rdy lippu summalle
 
 /* USER CODE END PV */
 
@@ -64,9 +73,10 @@ static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_PSSI_Init(void);
+static void MX_TIM16_Init(void);
 /* USER CODE BEGIN PFP */
 void HAL_PSSI_RxCpltCallback(PSSI_HandleTypeDef *hpssi);
-static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[RIVI]);
+static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][RIVI]);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -108,6 +118,7 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_PSSI_Init();
+  MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
   if (HAL_PSSI_Receive_DMA(&hpssi, (uint32_t*)kuva_buffer, sizeof(kuva_buffer)/4) != HAL_OK) //Käynnistetään PSSI vastaanotto sensorilta
   	           {
@@ -136,7 +147,10 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  start_time = HAL_GetTick(); //Ajastin päälle
+  //GPIO_PinState rdy_state = HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_2);
+  HAL_TIM_Base_Start(&htim16); //Ajastin päälle summauksen ja siirron mittaamiseen
+  start_time = __HAL_TIM_GET_COUNTER(&htim16); //Ajastin päälle koko prosessin mittaamiseen
+  //start_time_siirto = __HAL_TIM_GET_COUNTER(&htim16);
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET); //Asetetaan RDY-pinni ylös
   while (1)
   {
@@ -148,12 +162,16 @@ int main(void)
 	  if (Transfer_Ready == 1) {
 	          Transfer_Ready = 0;  // Nollataan odotustila
 	          if (rivisummat < 10){ //Vastaanotetaan 10 kuvaa
+
+	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET); //asetetaan RDY nollaan
 	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+
 	          }
 	          else {
-	        	  elapsed_time = HAL_GetTick() - start_time; //Kun 10 kuvaa saapunut mitataan kulunut aika
-	        	  float fps = (1000.0 / elapsed_time) * 10; //lasketaan kuvien määrä sekunnissa
-	        	  printf("10 kuvaa vastaanotettu ajassa: %lu ms, FPS: %.2f\n", elapsed_time, fps);
+	        	  elapsed_time = (__HAL_TIM_GET_COUNTER(&htim16) - start_time); //Kun 10 kuvaa saapunut mitataan kulunut aika
+	        	  float fps = (1000000.0 / elapsed_time) * 10; //lasketaan kuvien määrä sekunnissa
+	        	  printf(" 10 kuvaa vastaanotettu ajassa: %lu us\n\r FPS: %.2f\n\r Summauksen kesto: %u us\n\r PSSI siirron kesto: %u us\r\n\n", elapsed_time, fps, end_time_summaus, end_time_siirto);
+
 	          }
 	      }
 	  	  //else {
@@ -161,9 +179,10 @@ int main(void)
 	          //HAL_Delay(1000);
 	      //}
   //}
+  }
   /* USER CODE END 3 */
 }
-}
+
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -192,13 +211,13 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 17;
+  RCC_OscInitStruct.PLL.PLLN = 34;
   RCC_OscInitStruct.PLL.PLLP = 1;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-  RCC_OscInitStruct.PLL.PLLFRACN = 1536;
+  RCC_OscInitStruct.PLL.PLLFRACN = 3072;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -211,7 +230,7 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_D3PCLK1|RCC_CLOCKTYPE_D1PCLK1;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
@@ -252,6 +271,38 @@ static void MX_PSSI_Init(void)
   /* USER CODE BEGIN PSSI_Init 2 */
 
   /* USER CODE END PSSI_Init 2 */
+
+}
+
+/**
+  * @brief TIM16 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM16_Init(void)
+{
+
+  /* USER CODE BEGIN TIM16_Init 0 */
+
+  /* USER CODE END TIM16_Init 0 */
+
+  /* USER CODE BEGIN TIM16_Init 1 */
+
+  /* USER CODE END TIM16_Init 1 */
+  htim16.Instance = TIM16;
+  htim16.Init.Prescaler = 274;
+  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim16.Init.Period = 65535;
+  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim16.Init.RepetitionCounter = 0;
+  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM16_Init 2 */
+
+  /* USER CODE END TIM16_Init 2 */
 
 }
 
@@ -307,21 +358,31 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[RIVI]) {
+static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][RIVI]) {
     for (int i = 0; i < RIVI; i++) {
         uint32_t row_sum = 0; // Käytetään 32-bittistä summamuuttujaa riville
         for (int j = 0; j < SARAKE; j++) {
             row_sum += kuva_buffer[i][j];  // Summaaminen riviltä
         }
-        sum[i] = row_sum;  // Tallennetaan rivin summa sum-taulukkoon
+        sum[rivisummat][i] = row_sum;  // Tallennetaan rivin summa sum-taulukkoon
     }
     rivisummat++;
+    sum_rdy++;
 }
 //keskeytyksen käsittelijä aktivoituu kun rxbufferi on täyttynyt
 void HAL_PSSI_RxCpltCallback(PSSI_HandleTypeDef *hpssi)
 {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET); //asetetaan RDY nollaan
+
+	if (rivisummat < 1) {
+	end_time_siirto = __HAL_TIM_GET_COUNTER(&htim16) - start_time;
+	}
+
+	start_time_summaus = __HAL_TIM_GET_COUNTER(&htim16);
+
 	RIVIEN_SUMMAUS(kuva_buffer, kuva_summa); //summataan rivit
+
+	end_time_summaus = __HAL_TIM_GET_COUNTER(&htim16) - start_time_summaus;
+
 	Transfer_Ready++; //lippu ylös
 
 
