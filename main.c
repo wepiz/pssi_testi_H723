@@ -63,7 +63,7 @@ volatile uint16_t end_time_summaus;   // Lopetusaika summaukselle
 //volatile uint16_t start_time_siirto; // Aloitusaika siirrolle
 volatile uint16_t end_time_siirto; // Lopetusaika siirrolle
 
-volatile uint16_t sum_rdy; //rdy lippu summalle
+
 
 /* USER CODE END PV */
 
@@ -359,15 +359,31 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][RIVI]) {
-    for (int i = 0; i < RIVI; i++) {
-        uint32_t row_sum = 0; // Käytetään 32-bittistä summamuuttujaa riville
-        for (int j = 0; j < SARAKE; j++) {
-            row_sum += kuva_buffer[i][j];  // Summaaminen riviltä
-        }
-        sum[rivisummat][i] = row_sum;  // Tallennetaan rivin summa sum-taulukkoon
-    }
+	for (int i = 0; i < RIVI; i++) {
+	    uint32_t row_sum = 0;
+	    for (int j = 0; j < SARAKE; j += 64) { // 64 elementin putkitus
+	        row_sum += kuva_buffer[i][j] + kuva_buffer[i][j + 1] + kuva_buffer[i][j + 2] + kuva_buffer[i][j + 3] +
+	                   kuva_buffer[i][j + 4] + kuva_buffer[i][j + 5] + kuva_buffer[i][j + 6] + kuva_buffer[i][j + 7] +
+	                   kuva_buffer[i][j + 8] + kuva_buffer[i][j + 9] + kuva_buffer[i][j + 10] + kuva_buffer[i][j + 11] +
+	                   kuva_buffer[i][j + 12] + kuva_buffer[i][j + 13] + kuva_buffer[i][j + 14] + kuva_buffer[i][j + 15] +
+	                   kuva_buffer[i][j + 16] + kuva_buffer[i][j + 17] + kuva_buffer[i][j + 18] + kuva_buffer[i][j + 19] +
+	                   kuva_buffer[i][j + 20] + kuva_buffer[i][j + 21] + kuva_buffer[i][j + 22] + kuva_buffer[i][j + 23] +
+	                   kuva_buffer[i][j + 24] + kuva_buffer[i][j + 25] + kuva_buffer[i][j + 26] + kuva_buffer[i][j + 27] +
+	                   kuva_buffer[i][j + 28] + kuva_buffer[i][j + 29] + kuva_buffer[i][j + 30] + kuva_buffer[i][j + 31] +
+	                   kuva_buffer[i][j + 32] + kuva_buffer[i][j + 33] + kuva_buffer[i][j + 34] + kuva_buffer[i][j + 35] +
+	                   kuva_buffer[i][j + 36] + kuva_buffer[i][j + 37] + kuva_buffer[i][j + 38] + kuva_buffer[i][j + 39] +
+	                   kuva_buffer[i][j + 40] + kuva_buffer[i][j + 41] + kuva_buffer[i][j + 42] + kuva_buffer[i][j + 43] +
+	                   kuva_buffer[i][j + 44] + kuva_buffer[i][j + 45] + kuva_buffer[i][j + 46] + kuva_buffer[i][j + 47] +
+	                   kuva_buffer[i][j + 48] + kuva_buffer[i][j + 49] + kuva_buffer[i][j + 50] + kuva_buffer[i][j + 51] +
+	                   kuva_buffer[i][j + 52] + kuva_buffer[i][j + 53] + kuva_buffer[i][j + 54] + kuva_buffer[i][j + 55] +
+	                   kuva_buffer[i][j + 56] + kuva_buffer[i][j + 57] + kuva_buffer[i][j + 58] + kuva_buffer[i][j + 59] +
+	                   kuva_buffer[i][j + 60] + kuva_buffer[i][j + 61] + kuva_buffer[i][j + 62] + kuva_buffer[i][j + 63];
+	    }
+	    sum[rivisummat][i] = row_sum;
+	}
+
     rivisummat++;
-    sum_rdy++;
+
 }
 //keskeytyksen käsittelijä aktivoituu kun rxbufferi on täyttynyt
 void HAL_PSSI_RxCpltCallback(PSSI_HandleTypeDef *hpssi)
