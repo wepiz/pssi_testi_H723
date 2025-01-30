@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <arm_neon.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -170,11 +170,11 @@ int main(void)
 	          else {
 	        	  elapsed_time = (__HAL_TIM_GET_COUNTER(&htim16) - start_time); //Kun 10 kuvaa saapunut mitataan kulunut aika
 	        	  float fps = (1000000.0 / elapsed_time) * 10; //lasketaan kuvien määrä sekunnissa
-	        	  uint32_t tarkastus = 0;
+	        	  uint32_t tarkistus = 0;
 	        	  for (int i = 0; i < 128; i++) {
-	        	      tarkastus += kuva_summa[0][i]; // Lisätään arvoja summaan
+	        	      tarkistus += kuva_summa[0][i]; // varmistus optimoinnille
 	        	  }
-	        	  printf(" 10 kuvaa vastaanotettu ajassa: %lu us\n\r FPS: %.2f\n\r Summauksen kesto: %u us\n\r PSSI siirron kesto: %u us\n\r tarkastus %u\r\n\n", elapsed_time, fps, end_time_summaus, end_time_siirto, tarkastus);
+	        	  printf(" 10 kuvaa vastaanotettu ajassa: %lu us\n\r FPS: %.2f\n\r Summauksen kesto: %u us\n\r PSSI siirron kesto: %u us\n\r tarkistus %lu\r\n\n", elapsed_time, fps, end_time_summaus, end_time_siirto, tarkistus);
 
 	          }
 	      }
@@ -363,26 +363,43 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+
 static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][RIVI]) {
 	for (int i = 0; i < RIVI; i++) {
 	    uint32_t row_sum = 0;
-	    for (int j = 0; j < SARAKE; j += 64) { // 64 elementin putkitus
-	        row_sum += kuva_buffer[i][j] + kuva_buffer[i][j + 1] + kuva_buffer[i][j + 2] + kuva_buffer[i][j + 3] +
-	                   kuva_buffer[i][j + 4] + kuva_buffer[i][j + 5] + kuva_buffer[i][j + 6] + kuva_buffer[i][j + 7] +
-	                   kuva_buffer[i][j + 8] + kuva_buffer[i][j + 9] + kuva_buffer[i][j + 10] + kuva_buffer[i][j + 11] +
-	                   kuva_buffer[i][j + 12] + kuva_buffer[i][j + 13] + kuva_buffer[i][j + 14] + kuva_buffer[i][j + 15] +
-	                   kuva_buffer[i][j + 16] + kuva_buffer[i][j + 17] + kuva_buffer[i][j + 18] + kuva_buffer[i][j + 19] +
-	                   kuva_buffer[i][j + 20] + kuva_buffer[i][j + 21] + kuva_buffer[i][j + 22] + kuva_buffer[i][j + 23] +
-	                   kuva_buffer[i][j + 24] + kuva_buffer[i][j + 25] + kuva_buffer[i][j + 26] + kuva_buffer[i][j + 27] +
-	                   kuva_buffer[i][j + 28] + kuva_buffer[i][j + 29] + kuva_buffer[i][j + 30] + kuva_buffer[i][j + 31] +
-	                   kuva_buffer[i][j + 32] + kuva_buffer[i][j + 33] + kuva_buffer[i][j + 34] + kuva_buffer[i][j + 35] +
-	                   kuva_buffer[i][j + 36] + kuva_buffer[i][j + 37] + kuva_buffer[i][j + 38] + kuva_buffer[i][j + 39] +
-	                   kuva_buffer[i][j + 40] + kuva_buffer[i][j + 41] + kuva_buffer[i][j + 42] + kuva_buffer[i][j + 43] +
-	                   kuva_buffer[i][j + 44] + kuva_buffer[i][j + 45] + kuva_buffer[i][j + 46] + kuva_buffer[i][j + 47] +
-	                   kuva_buffer[i][j + 48] + kuva_buffer[i][j + 49] + kuva_buffer[i][j + 50] + kuva_buffer[i][j + 51] +
-	                   kuva_buffer[i][j + 52] + kuva_buffer[i][j + 53] + kuva_buffer[i][j + 54] + kuva_buffer[i][j + 55] +
-	                   kuva_buffer[i][j + 56] + kuva_buffer[i][j + 57] + kuva_buffer[i][j + 58] + kuva_buffer[i][j + 59] +
-	                   kuva_buffer[i][j + 60] + kuva_buffer[i][j + 61] + kuva_buffer[i][j + 62] + kuva_buffer[i][j + 63];
+	    for (int j = 0; j < SARAKE; j += 128) { // 128 elementin putkitus
+	        row_sum += kuva_buffer[i][j]   + kuva_buffer[i][j + 1]   + kuva_buffer[i][j + 2]   + kuva_buffer[i][j + 3]   +
+	                   kuva_buffer[i][j + 4]   + kuva_buffer[i][j + 5]   + kuva_buffer[i][j + 6]   + kuva_buffer[i][j + 7]   +
+	                   kuva_buffer[i][j + 8]   + kuva_buffer[i][j + 9]   + kuva_buffer[i][j + 10]  + kuva_buffer[i][j + 11]  +
+	                   kuva_buffer[i][j + 12]  + kuva_buffer[i][j + 13]  + kuva_buffer[i][j + 14]  + kuva_buffer[i][j + 15]  +
+	                   kuva_buffer[i][j + 16]  + kuva_buffer[i][j + 17]  + kuva_buffer[i][j + 18]  + kuva_buffer[i][j + 19]  +
+	                   kuva_buffer[i][j + 20]  + kuva_buffer[i][j + 21]  + kuva_buffer[i][j + 22]  + kuva_buffer[i][j + 23]  +
+	                   kuva_buffer[i][j + 24]  + kuva_buffer[i][j + 25]  + kuva_buffer[i][j + 26]  + kuva_buffer[i][j + 27]  +
+	                   kuva_buffer[i][j + 28]  + kuva_buffer[i][j + 29]  + kuva_buffer[i][j + 30]  + kuva_buffer[i][j + 31]  +
+	                   kuva_buffer[i][j + 32]  + kuva_buffer[i][j + 33]  + kuva_buffer[i][j + 34]  + kuva_buffer[i][j + 35]  +
+	                   kuva_buffer[i][j + 36]  + kuva_buffer[i][j + 37]  + kuva_buffer[i][j + 38]  + kuva_buffer[i][j + 39]  +
+	                   kuva_buffer[i][j + 40]  + kuva_buffer[i][j + 41]  + kuva_buffer[i][j + 42]  + kuva_buffer[i][j + 43]  +
+	                   kuva_buffer[i][j + 44]  + kuva_buffer[i][j + 45]  + kuva_buffer[i][j + 46]  + kuva_buffer[i][j + 47]  +
+	                   kuva_buffer[i][j + 48]  + kuva_buffer[i][j + 49]  + kuva_buffer[i][j + 50]  + kuva_buffer[i][j + 51]  +
+	                   kuva_buffer[i][j + 52]  + kuva_buffer[i][j + 53]  + kuva_buffer[i][j + 54]  + kuva_buffer[i][j + 55]  +
+	                   kuva_buffer[i][j + 56]  + kuva_buffer[i][j + 57]  + kuva_buffer[i][j + 58]  + kuva_buffer[i][j + 59]  +
+	                   kuva_buffer[i][j + 60]  + kuva_buffer[i][j + 61]  + kuva_buffer[i][j + 62]  + kuva_buffer[i][j + 63]  +
+	                   kuva_buffer[i][j + 64]  + kuva_buffer[i][j + 65]  + kuva_buffer[i][j + 66]  + kuva_buffer[i][j + 67]  +
+	                   kuva_buffer[i][j + 68]  + kuva_buffer[i][j + 69]  + kuva_buffer[i][j + 70]  + kuva_buffer[i][j + 71]  +
+	                   kuva_buffer[i][j + 72]  + kuva_buffer[i][j + 73]  + kuva_buffer[i][j + 74]  + kuva_buffer[i][j + 75]  +
+	                   kuva_buffer[i][j + 76]  + kuva_buffer[i][j + 77]  + kuva_buffer[i][j + 78]  + kuva_buffer[i][j + 79]  +
+	                   kuva_buffer[i][j + 80]  + kuva_buffer[i][j + 81]  + kuva_buffer[i][j + 82]  + kuva_buffer[i][j + 83]  +
+	                   kuva_buffer[i][j + 84]  + kuva_buffer[i][j + 85]  + kuva_buffer[i][j + 86]  + kuva_buffer[i][j + 87]  +
+	                   kuva_buffer[i][j + 88]  + kuva_buffer[i][j + 89]  + kuva_buffer[i][j + 90]  + kuva_buffer[i][j + 91]  +
+	                   kuva_buffer[i][j + 92]  + kuva_buffer[i][j + 93]  + kuva_buffer[i][j + 94]  + kuva_buffer[i][j + 95]  +
+	                   kuva_buffer[i][j + 96]  + kuva_buffer[i][j + 97]  + kuva_buffer[i][j + 98]  + kuva_buffer[i][j + 99]  +
+	                   kuva_buffer[i][j + 100] + kuva_buffer[i][j + 101] + kuva_buffer[i][j + 102] + kuva_buffer[i][j + 103] +
+	                   kuva_buffer[i][j + 104] + kuva_buffer[i][j + 105] + kuva_buffer[i][j + 106] + kuva_buffer[i][j + 107] +
+	                   kuva_buffer[i][j + 108] + kuva_buffer[i][j + 109] + kuva_buffer[i][j + 110] + kuva_buffer[i][j + 111] +
+	                   kuva_buffer[i][j + 112] + kuva_buffer[i][j + 113] + kuva_buffer[i][j + 114] + kuva_buffer[i][j + 115] +
+	                   kuva_buffer[i][j + 116] + kuva_buffer[i][j + 117] + kuva_buffer[i][j + 118] + kuva_buffer[i][j + 119] +
+	                   kuva_buffer[i][j + 120] + kuva_buffer[i][j + 121] + kuva_buffer[i][j + 122] + kuva_buffer[i][j + 123] +
+	                   kuva_buffer[i][j + 124] + kuva_buffer[i][j + 125] + kuva_buffer[i][j + 126] + kuva_buffer[i][j + 127];
 	    }
 	    sum[rivisummat][i] = row_sum;
 	}
