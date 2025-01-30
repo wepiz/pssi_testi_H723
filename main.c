@@ -170,7 +170,11 @@ int main(void)
 	          else {
 	        	  elapsed_time = (__HAL_TIM_GET_COUNTER(&htim16) - start_time); //Kun 10 kuvaa saapunut mitataan kulunut aika
 	        	  float fps = (1000000.0 / elapsed_time) * 10; //lasketaan kuvien määrä sekunnissa
-	        	  printf(" 10 kuvaa vastaanotettu ajassa: %lu us\n\r FPS: %.2f\n\r Summauksen kesto: %u us\n\r PSSI siirron kesto: %u us\r\n\n", elapsed_time, fps, end_time_summaus, end_time_siirto);
+	        	  uint32_t tarkastus = 0;
+	        	  for (int i = 0; i < 128; i++) {
+	        	      tarkastus += kuva_summa[0][i]; // Lisätään arvoja summaan
+	        	  }
+	        	  printf(" 10 kuvaa vastaanotettu ajassa: %lu us\n\r FPS: %.2f\n\r Summauksen kesto: %u us\n\r PSSI siirron kesto: %u us\n\r tarkastus %u\r\n\n", elapsed_time, fps, end_time_summaus, end_time_siirto, tarkastus);
 
 	          }
 	      }
@@ -358,6 +362,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
 static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][RIVI]) {
 	for (int i = 0; i < RIVI; i++) {
 	    uint32_t row_sum = 0;
@@ -385,6 +390,8 @@ static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][
     rivisummat++;
 
 }
+
+
 //keskeytyksen käsittelijä aktivoituu kun rxbufferi on täyttynyt
 void HAL_PSSI_RxCpltCallback(PSSI_HandleTypeDef *hpssi)
 {
