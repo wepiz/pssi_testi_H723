@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <arm_neon.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
