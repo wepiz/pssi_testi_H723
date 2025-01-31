@@ -367,7 +367,7 @@ static void MX_GPIO_Init(void)
 static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][RIVI]) {
 	for (int i = 0; i < RIVI; i++) {
 	    uint32_t row_sum = 0;
-	    for (int j = 0; j < SARAKE; j += 128) { // 128 elementin putkitus
+	    for (int j = 0; j < SARAKE; j += 128) { // 128 summauksen putkitus
 	        row_sum += kuva_buffer[i][j]   + kuva_buffer[i][j + 1]   + kuva_buffer[i][j + 2]   + kuva_buffer[i][j + 3]   +
 	                   kuva_buffer[i][j + 4]   + kuva_buffer[i][j + 5]   + kuva_buffer[i][j + 6]   + kuva_buffer[i][j + 7]   +
 	                   kuva_buffer[i][j + 8]   + kuva_buffer[i][j + 9]   + kuva_buffer[i][j + 10]  + kuva_buffer[i][j + 11]  +
