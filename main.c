@@ -77,7 +77,7 @@ static void MX_TIM16_Init(void);
 /* USER CODE BEGIN PFP */
 void HAL_PSSI_RxCpltCallback(PSSI_HandleTypeDef *hpssi);
 static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][RIVI]);
-//static void CPU_CACHE_Enable(void);
+static void CPU_CACHE_Enable(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -93,7 +93,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  //CPU_CACHE_Enable();
+  CPU_CACHE_Enable();
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -165,7 +165,7 @@ int main(void)
 	          if (rivisummat < 10){ //Vastaanotetaan 10 kuvaa
 
 	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET); //asetetaan RDY nollaan
-	          //HAL_Delay(10);
+	          HAL_Delay(10);
 	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
 
 	          }
@@ -177,9 +177,10 @@ int main(void)
 	        	      tarkistus += kuva_summa[0][i]; // varmistus optimoinnille
 	        	  }
 	        	  printf(" 10 kuvaa vastaanotettu ajassa: %lu us\n\r FPS: %.2f\n\r Summauksen kesto: %u us\n\r PSSI siirron kesto: %u us\n\r tarkistus %lu\r\n\n", elapsed_time, fps, end_time_summaus, end_time_siirto, tarkistus);
-	        	  //rivisummat = 0;
-	        	  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET); //asetetaan RDY nollaan
-	        	  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+	        	  rivisummat = 0;
+	        	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET); //asetetaan RDY nollaan
+	        	  HAL_Delay(10);
+	        	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
 
 	          }
 	      }
@@ -372,14 +373,14 @@ static void MX_GPIO_Init(void)
   * @param  None
   * @retval None
   */
-//static void CPU_CACHE_Enable(void)
-//{
+static void CPU_CACHE_Enable(void)
+{
   /* Enable I-Cache */
-  //SCB_EnableICache();
+  SCB_EnableICache();
 
   /* Enable D-Cache */
-  //SCB_EnableDCache();
-//}
+  SCB_EnableDCache();
+}
 
 static void RIVIEN_SUMMAUS(uint16_t kuva_buffer[RIVI][SARAKE], uint32_t sum[10][RIVI]) {
     for (int i = 0; i < RIVI; i++) {
@@ -431,7 +432,7 @@ void HAL_PSSI_RxCpltCallback(PSSI_HandleTypeDef *hpssi)
 	if (rivisummat < 1) {
 	end_time_siirto = __HAL_TIM_GET_COUNTER(&htim16) - start_time;
 	}
-
+	 //SCB_InvalidateDCache_by_Addr((uint32_t*)kuva_buffer, sizeof(kuva_buffer));
 
 	start_time_summaus = __HAL_TIM_GET_COUNTER(&htim16);
 
